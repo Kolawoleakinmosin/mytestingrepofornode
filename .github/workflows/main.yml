@@ -37,7 +37,7 @@ jobs:
     - name: Update kubeconfig
       run: |
         aws eks update-kubeconfig --name ${{ env.CLUSTER_NAME }}
-        aws eks get-token --cluster-name ${{ env.CLUSTER_NAME }} | kubectl config set-credentials eks-cluster --token=$$(cat)
+        aws eks get-token --cluster-name ${{ env.CLUSTER_NAME }} | xargs -0 kubectl config set-credentials eks-cluster --token
 
     - name: build and push image to ECR
       uses: vitr/actions-build-and-upload-to-ecs@master
