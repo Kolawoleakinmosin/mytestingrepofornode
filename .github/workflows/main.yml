@@ -1,0 +1,65 @@
+name: deploy-to-eks
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REGISTRY: 383265273024.dkr.ecr.us-east-1.amazonaws.com
+  IMAGE_NAME: my-new-image
+  CLUSTER_NAME: demo-eks
+  NAMESPACE: default
+
+jobs:
+  deploy-to-eks:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Install Docker
+      uses: docker/setup-buildx-action@v1
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+       
+    - name: build and push image to ECR
+      uses: vitr/actions-build-and-upload-to-ecs@master
+      with:
+          access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          account_id: ${{ secrets.AWS_ACCOUNT_ID }}
+          repo: mydockerrepo
+          region: us-east-1
+          tags: latest,${{ github.sha }}
+          create_repo: true
+
+    - name: Build and push Docker image
+      id: build-image
+      uses: docker/build-push-action@v2
+      with:
+        context: .
+        dockerfile: Dockerfile
+        push: true
+        tags: |
+          ${{ env.ECR_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          ${{ env.ECR_REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+
+    - name: Deploy to EKS
+      run: |
+        aws eks update-kubeconfig --name ${{ env.CLUSTER_NAME }}
+        kubectl apply -f k8s/deployment.yaml -n ${{ env.NAMESPACE }}
+        kubectl set image deployment/my-deployment my-container=${{ env.ECR_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+        kubectl rollout status deployment/my-deployment -n ${{ env.NAMESPACE }}
+
