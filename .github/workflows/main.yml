@@ -1,47 +1,33 @@
-name: deploy-to-eks
-
-on:
-  push:
-    branches:
-      - main
-
-env:
-  AWS_REGION: us-east-1
-  ECR_REGISTRY: 383265273024.dkr.ecr.us-east-1.amazonaws.com
-  IMAGE_NAME: my-new-image
-  CLUSTER_NAME: mynodeapp-eks
-  NAMESPACE: default
-
 jobs:
   deploy-to-eks:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v1
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ env.AWS_REGION }}
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
 
-    - name: Install Docker
-      uses: docker/setup-buildx-action@v1
+      - name: Install Docker
+        uses: docker/setup-buildx-action@v1
 
-    - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v1
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
 
-    - name: Update kubeconfig
-      run: |
-        aws eks update-kubeconfig --name ${{ env.CLUSTER_NAME }}
-        aws eks get-token --cluster-name ${{ env.CLUSTER_NAME }} | xargs -0 kubectl config set-credentials eks-cluster --token
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig --name ${{ env.CLUSTER_NAME }}
+          aws eks get-token --cluster-name ${{ env.CLUSTER_NAME }} | xargs -0 kubectl config set-credentials eks-cluster --token
 
-    - name: build and push image to ECR
-      uses: vitr/actions-build-and-upload-to-ecs@master
-      with:
+      - name: build and push image to ECR
+        uses: vitr/actions-build-and-upload-to-ecs@master
+        with:
           access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           account_id: ${{ secrets.AWS_ACCOUNT_ID }}
@@ -49,10 +35,11 @@ jobs:
           region: us-east-1
           tags: latest,${{ github.sha }}
           create_repo: true
-    - name: Deploy to EKS
-  env:
-    KUBECONFIG: ${{ secrets.KUBE_CONFIG }}
-  run: |
-    kubectl apply -f k8s/deployment.yaml -n ${{ env.NAMESPACE }}
-    kubectl set image deployment/my-deployment my-container=${{ env.ECR_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-    kubectl rollout status deployment/my-deployment -n ${{ env.NAMESPACE }}
+
+      - name: Deploy to EKS
+        env:
+          KUBECONFIG: ${{ secrets.KUBE_CONFIG }}
+        run: |
+          kubectl apply -f k8s/deployment.yaml -n ${{ env.NAMESPACE }}
+          kubectl set image deployment/my-deployment my-container=${{ env.ECR_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          kubectl rollout status deployment/my-deployment -n ${{ env.NAMESPACE }}
