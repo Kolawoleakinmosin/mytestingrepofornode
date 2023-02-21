@@ -9,7 +9,7 @@ env:
   AWS_REGION: us-east-1
   ECR_REGISTRY: 383265273024.dkr.ecr.us-east-1.amazonaws.com
   IMAGE_NAME: my-new-image
-  CLUSTER_NAME: demo-eks
+  CLUSTER_NAME: mynodeapp-eks
   NAMESPACE: default
 
 jobs:
@@ -45,23 +45,14 @@ jobs:
           access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           account_id: ${{ secrets.AWS_ACCOUNT_ID }}
-          repo: mydockerrepo
+          repo: my-node-app
           region: us-east-1
           tags: latest,${{ github.sha }}
           create_repo: true
-    - name: deploy to cluster
-      uses: kodermax/kubectl-aws-eks@master
-      env:
-        KUBE_CONFIG_DATA: ${{ secrets.KUBE_CONFIG_DATA_STAGING }}
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        ECR_REPOSITORY: mydockerrepo
-        IMAGE_TAG: ${{ github.sha }}
-      with:
-        args: set image deployment/$ECR_REPOSITORY $ECR_REPOSITORY=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-
-    - name: verify deployment
-      uses: kodermax/kubectl-aws-eks@master
-      env:
-        KUBE_CONFIG_DATA: ${{ secrets.KUBE_CONFIG_DATA }}
-      with:
-        args: rollout status deployment/my-app
+    - name: Deploy to EKS
+  env:
+    KUBECONFIG: ${{ secrets.KUBE_CONFIG }}
+  run: |
+    kubectl apply -f k8s/deployment.yaml -n ${{ env.NAMESPACE }}
+    kubectl set image deployment/my-deployment my-container=${{ env.ECR_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+    kubectl rollout status deployment/my-deployment -n ${{ env.NAMESPACE }}
