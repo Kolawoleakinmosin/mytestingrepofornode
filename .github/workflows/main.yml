@@ -50,9 +50,13 @@ jobs:
           tags: latest,${{ github.sha }}
           create_repo: true
 
+      - name: setup-k8s-kustomize
+    uses: grumpy-programmer/setup-k8s-kustomize@v1
+    with:
+        version: 4.5.4
+
       - name: Deploy to EKS
         env:
           KUBECONFIG: ${{ secrets.KUBE_CONFIG }}
         run: |
           kubectl get pods
-          
