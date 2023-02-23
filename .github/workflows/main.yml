@@ -54,6 +54,5 @@ jobs:
         env:
           KUBECONFIG: ${{ secrets.KUBE_CONFIG }}
         run: |
-          kubectl apply -f k8s/deployment.yaml -n ${{ env.NAMESPACE }}
-          kubectl set image deployment/my-deployment my-container=${{ env.ECR_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-          kubectl rollout status deployment/my-deployment -n ${{ env.NAMESPACE }}
+          kubectl get pods
+          
